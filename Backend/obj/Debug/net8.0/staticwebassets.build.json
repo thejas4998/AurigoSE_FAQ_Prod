@@ -1,0 +1,19 @@
+{
+  "Version": 1,
+  "Hash": "nbwJIqZKAJIeeYdaZ1Oiyg7MP4BcKtD7GYImsHhc2NU=",
+  "Source": "SolutionEngineeringFAQ.API",
+  "BasePath": "_content/SolutionEngineeringFAQ.API",
+  "Mode": "Default",
+  "ManifestType": "Build",
+  "ReferencedProjectsConfiguration": [],
+  "DiscoveryPatterns": [
+    {
+      "Name": "SolutionEngineeringFAQ.API/wwwroot",
+      "Source": "SolutionEngineeringFAQ.API",
+      "ContentRoot": "/Users/thejassathish/Code/VibeCoding/AurigoFAQCleaned/SolutionEngineeringFAQ.API/wwwroot/",
+      "BasePath": "_content/SolutionEngineeringFAQ.API",
+      "Pattern": "**"
+    }
+  ],
+  "Assets": []
+}
