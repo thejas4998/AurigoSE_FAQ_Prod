@@ -1,0 +1,15 @@
+# Global ignores
+node_modules/
+.env
+*.log
+
+# React build
+faqfrontend/build/
+
+# .NET build
+SolutionEngineeringFAQ/bin/
+SolutionEngineeringFAQ/obj/
+
+# OS & editor-specific
+.DS_Store
+.vscode/

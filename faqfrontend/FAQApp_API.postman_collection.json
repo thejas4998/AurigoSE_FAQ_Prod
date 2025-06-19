@@ -1,0 +1,100 @@
+{
+  "info": {
+    "name": "FAQApp API",
+    "schema": "https://schema.getpostman.com/json/collection/v2.1.0/collection.json"
+  },
+  "item": [
+    {
+      "name": "Create Question",
+      "request": {
+        "method": "POST",
+        "header": [
+          {
+            "key": "Content-Type",
+            "value": "application/json"
+          }
+        ],
+        "body": {
+          "mode": "raw",
+          "raw": "{\n  \"title\": \"How do I integrate Slack?\",\n  \"body\": \"I need to push notifications to Slack when a build completes.\",\n  \"category\": \"Integrations\",\n  \"answers\": []\n}"
+        },
+        "url": {
+          "raw": "http://localhost:5267/api/questions",
+          "protocol": "http",
+          "host": [
+            "localhost"
+          ],
+          "port": "5267",
+          "path": [
+            "api",
+            "questions"
+          ]
+        }
+      }
+    },
+    {
+      "name": "Get All Questions",
+      "request": {
+        "method": "GET",
+        "url": {
+          "raw": "http://localhost:5267/api/questions",
+          "protocol": "http",
+          "host": [
+            "localhost"
+          ],
+          "port": "5267",
+          "path": [
+            "api",
+            "questions"
+          ]
+        }
+      }
+    },
+    {
+      "name": "Create Answer",
+      "request": {
+        "method": "POST",
+        "header": [
+          {
+            "key": "Content-Type",
+            "value": "application/json"
+          }
+        ],
+        "body": {
+          "mode": "raw",
+          "raw": "{\n  \"body\": \"Use a webhook URL from Slack and trigger it via your CI/CD tool.\",\n  \"questionId\": 1\n}"
+        },
+        "url": {
+          "raw": "http://localhost:5267/api/answers",
+          "protocol": "http",
+          "host": [
+            "localhost"
+          ],
+          "port": "5267",
+          "path": [
+            "api",
+            "answers"
+          ]
+        }
+      }
+    },
+    {
+      "name": "Get All Answers",
+      "request": {
+        "method": "GET",
+        "url": {
+          "raw": "http://localhost:5267/api/answers",
+          "protocol": "http",
+          "host": [
+            "localhost"
+          ],
+          "port": "5267",
+          "path": [
+            "api",
+            "answers"
+          ]
+        }
+      }
+    }
+  ]
+}
