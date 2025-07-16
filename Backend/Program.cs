@@ -3,6 +3,8 @@ using Microsoft.EntityFrameworkCore;
 using Microsoft.IdentityModel.Tokens;
 using FAQApp.API.Data;
 using System.Text;
+using SolutionEngineeringFAQ.API.Services;
+using FAQApp.API.Filters;
 
 var builder = WebApplication.CreateBuilder(args);
 
@@ -13,8 +15,10 @@ var azureTenantId = builder.Configuration["AzureAd:TenantId"];
 var azureClientId = builder.Configuration["AzureAd:ClientId"];
 
 // 2. Add services
-builder.Services.AddControllers();
-
+builder.Services.AddControllers(options =>
+{
+    options.Filters.Add<GlobalExceptionFilter>();
+});
 builder.Services.AddHttpClient();
 // Add SQLite Database
 builder.Services.AddDbContext<AppDbContext>(options =>
@@ -69,7 +73,11 @@ if (!string.IsNullOrEmpty(azureTenantId) && !string.IsNullOrEmpty(azureClientId)
 
 // 4. Authorization - Simplified for now
 builder.Services.AddAuthorization();
+builder.Services.AddScoped<IUserService, UserService>();
+builder.Services.AddAutoMapper(typeof(FAQApp.API.Services.MappingProfile));
 
+builder.Services.AddScoped<FAQApp.API.Services.ChatbotService>();
+builder.Services.AddScoped<FAQApp.API.Services.QuestionSearchService>();
 // 5. Swagger & CORS
 builder.Services.AddEndpointsApiExplorer();
 builder.Services.AddSwaggerGen(options =>

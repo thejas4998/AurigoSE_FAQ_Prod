@@ -3,18 +3,14 @@ using FAQApp.API.Models;
 
 namespace FAQApp.API.Data
 {
-    public class AppDbContext : DbContext
+    public class AppDbContext(DbContextOptions<AppDbContext> options) : DbContext(options)
     {
-        public AppDbContext(DbContextOptions<AppDbContext> options)
-            : base(options) { }
-
         public DbSet<Question> Questions { get; set; }
         public DbSet<Answer> Answers { get; set; }
         public DbSet<QuestionImage> QuestionImages { get; set; }
         public DbSet<AnswerImage> AnswerImages { get; set; }
-        
-        // ✅ Add this line
         public DbSet<AnswerVote> AnswerVotes { get; set; }
+        public DbSet<User> Users { get; set; }
 
         protected override void OnModelCreating(ModelBuilder modelBuilder)
         {
@@ -41,17 +37,18 @@ namespace FAQApp.API.Data
                 .HasForeignKey(ai => ai.AnswerId)
                 .OnDelete(DeleteBehavior.Cascade);
 
-            // ✅ New: Relationship: Answer → AnswerVotes
+            // Relationship: Answer → AnswerVotes
             modelBuilder.Entity<AnswerVote>()
                 .HasOne(av => av.Answer)
                 .WithMany(a => a.Votes)
                 .HasForeignKey(av => av.AnswerId)
                 .OnDelete(DeleteBehavior.Cascade);
 
-            // ✅ New: Ensure one vote per user per answer
+            // Ensure one vote per user per answer
             modelBuilder.Entity<AnswerVote>()
                 .HasIndex(av => new { av.AnswerId, av.UserId })
                 .IsUnique();
         }
     }
+
 }

@@ -1,17 +1,17 @@
 {
   "format": 1,
   "restore": {
-    "/Users/thejassathish/Code/VibeCoding/AurigoFAQCleaned/faqfrontend/SolutionEngineeringFAQ.API/SolutionEngineeringFAQ.API.csproj": {}
+    "/Users/thejassathish/Code/VibeCoding/AurigoFAQCleaned/Frontend/SolutionEngineeringFAQ.API/SolutionEngineeringFAQ.API.csproj": {}
   },
   "projects": {
-    "/Users/thejassathish/Code/VibeCoding/AurigoFAQCleaned/faqfrontend/SolutionEngineeringFAQ.API/SolutionEngineeringFAQ.API.csproj": {
+    "/Users/thejassathish/Code/VibeCoding/AurigoFAQCleaned/Frontend/SolutionEngineeringFAQ.API/SolutionEngineeringFAQ.API.csproj": {
       "version": "1.0.0",
       "restore": {
-        "projectUniqueName": "/Users/thejassathish/Code/VibeCoding/AurigoFAQCleaned/faqfrontend/SolutionEngineeringFAQ.API/SolutionEngineeringFAQ.API.csproj",
+        "projectUniqueName": "/Users/thejassathish/Code/VibeCoding/AurigoFAQCleaned/Frontend/SolutionEngineeringFAQ.API/SolutionEngineeringFAQ.API.csproj",
         "projectName": "SolutionEngineeringFAQ.API",
-        "projectPath": "/Users/thejassathish/Code/VibeCoding/AurigoFAQCleaned/faqfrontend/SolutionEngineeringFAQ.API/SolutionEngineeringFAQ.API.csproj",
+        "projectPath": "/Users/thejassathish/Code/VibeCoding/AurigoFAQCleaned/Frontend/SolutionEngineeringFAQ.API/SolutionEngineeringFAQ.API.csproj",
         "packagesPath": "/Users/thejassathish/.nuget/packages/",
-        "outputPath": "/Users/thejassathish/Code/VibeCoding/AurigoFAQCleaned/faqfrontend/SolutionEngineeringFAQ.API/obj/",
+        "outputPath": "/Users/thejassathish/Code/VibeCoding/AurigoFAQCleaned/Frontend/SolutionEngineeringFAQ.API/obj/",
         "projectStyle": "PackageReference",
         "configFilePaths": [
           "/Users/thejassathish/.nuget/NuGet/NuGet.Config"

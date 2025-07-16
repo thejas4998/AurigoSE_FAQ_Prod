@@ -1,10 +1,6 @@
-using System;
-using System.Collections.Generic;
-using System.Linq;
-using System.Threading.Tasks;
 
-namespace SolutionEngineeringFAQ.API.DTOs
-{
+namespace SolutionEngineeringFAQ.API.DTOs;
+
     public class AnswerDto
     {
         public int Id { get; set; }
@@ -13,9 +9,9 @@ namespace SolutionEngineeringFAQ.API.DTOs
         public int QuestionId { get; set; }
         
         // Include image URLs
-        public List<string> ImageUrls { get; set; } = new List<string>();
+        public List<string> ImageUrls { get; set; } = [];
         
-        // ✅ New: Vote information
+        //Vote information
         public int UpvoteCount { get; set; }
         public int DownvoteCount { get; set; }
         public string? UserVote { get; set; } // "upvote", "downvote", or null
@@ -26,4 +22,3 @@ namespace SolutionEngineeringFAQ.API.DTOs
     {
         public bool IsUpvote { get; set; }
     }
-}

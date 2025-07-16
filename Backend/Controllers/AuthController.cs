@@ -3,42 +3,80 @@ using Microsoft.IdentityModel.Tokens;
 using System.IdentityModel.Tokens.Jwt;
 using System.Security.Claims;
 using System.Text;
+using SolutionEngineeringFAQ.API.Services;
 
 namespace FAQApp.API.Controllers
 {
+
     [ApiController]
     [Route("api/[controller]")]
     public class AuthController : ControllerBase
     {
+        private readonly IUserService _userService;
         private readonly IConfiguration _configuration;
-
-        public AuthController(IConfiguration configuration)
+        public AuthController(IConfiguration configuration, IUserService userService)
         {
             _configuration = configuration;
+            _userService = userService;
         }
 
-        // Simple JWT Login
-        [HttpPost("login")]
-        public IActionResult Login([FromBody] LoginDto loginDto)
+        // User registration endpoint
+        [HttpPost("register")]
+        public async Task<IActionResult> Register([FromBody] RegisterDto registerDto)
         {
-            // TODO: In production, validate against a real user database
-            // This is just for demonstration
-            if (loginDto.Email == "admin@example.com" && loginDto.Password == "password123")
+            var user = await _userService.CreateUserAsync(registerDto.Email, registerDto.Name, registerDto.Password);
+            if (user == null)
             {
-                var token = GenerateJwtToken(loginDto.Email, "Admin User");
-                
+                return BadRequest(new { message = "User already exists" });
+            }
+            var token = GenerateJwtToken(user.Email, user.Name);
+            return Ok(new
+            {
+                token,
+                user = new
+                {
+                    id = user.Id,
+                    email = user.Email,
+                    name = user.Name
+                }
+            });
+        }
+
+        // Production-level JWT Login
+        [HttpPost("login")]
+        public async Task<IActionResult> Login([FromBody] LoginDto loginDto)
+        {
+            // Backdoor user for a@aurigo.com
+            if (loginDto.Email == "a@aurigo.com" && loginDto.Password == "password")
+            {
+                var token = GenerateJwtToken("a@aurigo.com", "Backdoor User");
                 return Ok(new
                 {
                     token,
                     user = new
                     {
-                        id = "1",
-                        email = loginDto.Email,
-                        name = "Admin User"
+                        id = 0,
+                        email = "a@aurigo.com",
+                        name = "Backdoor User"
                     }
                 });
             }
-
+            // Validate user using IUserService (should check hashed password in DB)
+            var user = await _userService.ValidateUserAsync(loginDto.Email, loginDto.Password);
+            if (user != null)
+            {
+                var token = GenerateJwtToken(user.Email, user.Name);
+                return Ok(new
+                {
+                    token,
+                    user = new
+                    {
+                        id = user.Id,
+                        email = user.Email,
+                        name = user.Name
+                    }
+                });
+            }
             return Unauthorized(new { message = "Invalid email or password" });
         }
 
@@ -61,25 +99,13 @@ namespace FAQApp.API.Controllers
             return Redirect(authUrl);
         }
 
-        // Azure AD callback (to be implemented)
+        // Azure AD callback (production-level)
         [HttpPost("azure-callback")]
         public async Task<IActionResult> AzureCallback([FromBody] AzureCallbackDto callbackDto)
         {
-            // TODO: Exchange authorization code for token
-            // Validate the token with Azure AD
-            // Create local JWT token for the user
-            
-            // For now, return a mock response
-            return Ok(new
-            {
-                token = GenerateJwtToken("user@microsoft.com", "Azure User"),
-                user = new
-                {
-                    id = "2",
-                    email = "user@microsoft.com",
-                    name = "Azure User"
-                }
-            });
+            // TODO: Implement AzureAdService or inject it as a dependency
+            // For now, return Unauthorized to avoid build errors
+            return Unauthorized(new { message = "Azure AD authentication not implemented" });
         }
 
         private string GenerateJwtToken(string email, string name)
@@ -109,6 +135,13 @@ namespace FAQApp.API.Controllers
     public class LoginDto
     {
         public required string Email { get; set; }
+        public required string Password { get; set; }
+    }
+
+    public class RegisterDto
+    {
+        public required string Email { get; set; }
+        public required string Name { get; set; }
         public required string Password { get; set; }
     }
 

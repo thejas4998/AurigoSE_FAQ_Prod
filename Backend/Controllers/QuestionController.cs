@@ -4,29 +4,20 @@ using FAQApp.API.Data;
 using FAQApp.API.Models;
 using SolutionEngineeringFAQ.API.DTOs;
 using Microsoft.AspNetCore.Authorization;
-using System.Security.Claims;
-using System.Text;
-using System.Text.Json;
 
 namespace FAQApp.API.Controllers
 {
     [Authorize]
     [ApiController]
     [Route("api/[controller]")]
-    public class QuestionsController : ControllerBase
+    [TypeFilter(typeof(FAQApp.API.Filters.GlobalExceptionFilter))]
+public class QuestionsController(AppDbContext context, ILogger<QuestionsController> logger, Services.ChatbotService chatbotService, Services.QuestionSearchService questionSearchService, AutoMapper.IMapper mapper) : ControllerBase
     {
-        private readonly AppDbContext _context;
-        private readonly ILogger<QuestionsController> _logger;
-        private readonly IConfiguration _configuration;
-        private readonly HttpClient _httpClient;
-
-        public QuestionsController(AppDbContext context, ILogger<QuestionsController> logger, IConfiguration configuration, IHttpClientFactory httpClientFactory)
-        {
-            _context = context;
-            _logger = logger;
-            _configuration = configuration;
-            _httpClient = httpClientFactory.CreateClient();
-        }
+    private readonly AppDbContext _context = context;
+    private readonly ILogger<QuestionsController> _logger = logger;
+    private readonly Services.ChatbotService _chatbotService = chatbotService;
+    private readonly Services.QuestionSearchService _questionSearchService = questionSearchService;
+    private readonly AutoMapper.IMapper _mapper = mapper;
 
         // POST: api/questions
         [HttpPost]
@@ -35,7 +26,7 @@ namespace FAQApp.API.Controllers
             _context.Questions.Add(question);
             await _context.SaveChangesAsync();
 
-            var dto = MapToDto(question);
+            var dto = _mapper.Map<QuestionDto>(question);
             return CreatedAtAction(nameof(GetQuestion), new { id = question.Id }, dto);
         }
 
@@ -43,19 +34,20 @@ namespace FAQApp.API.Controllers
         [HttpGet]
         public async Task<ActionResult<IEnumerable<QuestionDto>>> GetQuestions([FromQuery] string? category)
         {
-           var query = _context.Questions
-            .Include(q => q.Answers!)
-                .ThenInclude(a => a.Images!)
-            .Include(q => q.Answers!)
-                .ThenInclude(a => a.Votes!)
-            .Include(q => q.Images!)
-            .AsQueryable();
+            var query = _context.Questions
+                .Include(q => q.Answers!)
+                    .ThenInclude(a => a.Images!)
+                .Include(q => q.Answers!)
+                    .ThenInclude(a => a.Votes!)
+                .Include(q => q.Images!)
+                .AsQueryable();
 
             if (!string.IsNullOrWhiteSpace(category))
                 query = query.Where(q => q.Category == category);
 
             var questions = await query.OrderByDescending(q => q.CreatedAt).ToListAsync();
-            return questions.Select(MapToDto).ToList();
+            var dtos = _mapper.Map<List<QuestionDto>>(questions);
+            return dtos;
         }
 
         // GET: api/questions/5
@@ -72,44 +64,10 @@ namespace FAQApp.API.Controllers
 
             if (question == null) return NotFound();
 
-            return MapToDto(question);
+            var dto = _mapper.Map<QuestionDto>(question);
+            return dto;
         }
 
-        // Map method - updated with null-check and FirstOrDefault protection
-        private QuestionDto MapToDto(Question question)
-        {
-            if (question == null)
-                throw new ArgumentNullException(nameof(question));
-
-            var userId = User.FindFirst(ClaimTypes.Email)?.Value 
-                      ?? User.FindFirst(ClaimTypes.NameIdentifier)?.Value;
-
-            return new QuestionDto
-            {
-                Id = question.Id,
-                Title = question.Title,
-                Body = question.Body,
-                Category = question.Category,
-                CreatedAt = question.CreatedAt,
-                Answered = question.Answered,
-                ImageUrls = question.Images?.Select(i => i.ImageUrl).ToList() ?? new List<string>(),
-                Answers = question.Answers?.Select(a =>
-                {
-                    var userVote = a.Votes?.FirstOrDefault(v => v.UserId == userId);
-                    return new AnswerDto
-                    {
-                        Id = a.Id,
-                        Body = a.Body,
-                        CreatedAt = a.CreatedAt,
-                        QuestionId = a.QuestionId,
-                        ImageUrls = a.Images?.Select(i => i.ImageUrl).ToList() ?? new List<string>(),
-                        UpvoteCount = a.Votes?.Count(v => v.IsUpvote) ?? 0,
-                        DownvoteCount = a.Votes?.Count(v => !v.IsUpvote) ?? 0,
-                        UserVote = userVote == null ? null : (userVote.IsUpvote ? "upvote" : "downvote")
-                    };
-                }).ToList() ?? new List<AnswerDto>()
-            };
-        }
 
         // PUT: api/questions/5
         [HttpPut("{id}")]
@@ -174,37 +132,30 @@ namespace FAQApp.API.Controllers
         {
             try
             {
-                // Step 1: Find relevant questions using keyword search
-                var relevantQuestions = await FindRelevantQuestions(query.Message);
-                
-                // Step 2: If no questions found, return a helpful message
-                if (!relevantQuestions.Any())
+                var relevantQuestions = await _questionSearchService.FindRelevantQuestions(query.Message);
+                if (relevantQuestions.Count == 0)
                 {
                     return Ok(new ChatbotResponseDto
                     {
                         Response = "I couldn't find any questions related to your query. Please try rephrasing or browse through our categories.",
-                        RelatedQuestions = new List<RelatedQuestionDto>()
+                        RelatedQuestions = []
                     });
                 }
 
-                // Step 3: Prepare context for LLM
-                var context = PrepareContextForLLM(relevantQuestions, query.Message);
-                
-                // Step 4: Call LLM API (OpenAI example - replace with your LLM)
-                var llmResponse = await CallLLM(context);
-                
-                // Step 5: Return response with related questions
+                var context = Services.ChatbotService.PrepareContextForLLM(relevantQuestions, query.Message);
+                var llmResponse = await _chatbotService.CallLLM(context);
+
                 return Ok(new ChatbotResponseDto
                 {
                     Response = llmResponse,
-                    RelatedQuestions = relevantQuestions.Take(3).Select(q => new RelatedQuestionDto
+                    RelatedQuestions = [.. relevantQuestions.Take(3).Select(q => new RelatedQuestionDto
                     {
                         Id = q.Id,
                         Title = q.Title,
                         Body = q.Body,
                         Category = q.Category,
-                        AnswerBodies = q.Answers?.Select(a => a.Body).ToList() ?? new List<string>()
-                    }).ToList()
+                        AnswerBodies = q.Answers?.Select(a => a.Body).ToList() ?? []
+                    })]
                 });
             }
             catch (Exception ex)
@@ -213,7 +164,7 @@ namespace FAQApp.API.Controllers
                 return Ok(new ChatbotResponseDto
                 {
                     Response = "I'm having trouble processing your request right now. Please try again later.",
-                    RelatedQuestions = new List<RelatedQuestionDto>()
+                    RelatedQuestions = []
                 });
             }
         }
@@ -256,150 +207,12 @@ namespace FAQApp.API.Controllers
                     1
                 )
                 .ThenByDescending(q => q.CreatedAt)
-                .Take(20) // Limit results
+                .Take(Constants.MaxSearchResults) // Limit results
                 .ToListAsync();
 
-            return questions.Select(MapToDto).ToList();
-        }
-        private async Task<List<Question>> FindRelevantQuestions(string userQuery)
-        {
-            // Convert query to lowercase for case-insensitive search
-            var lowerQuery = userQuery.ToLower();
-            var keywords = lowerQuery.Split(' ', StringSplitOptions.RemoveEmptyEntries)
-                                    .Where(w => w.Length > 2); // Filter out small words
-
-            // Find questions that contain any of the keywords
-            var questions = await _context.Questions
-                .Include(q => q.Answers)
-                .Where(q =>
-                    keywords.Any(keyword =>
-                        q.Title.ToLower().Contains(keyword) ||
-                        (q.Body != null && q.Body.ToLower().Contains(keyword)) ||
-                        q.Category.ToLower().Contains(keyword) ||
-                        q.Answers!.Any(a => a.Body.ToLower().Contains(keyword))
-                    )
-                )
-                .OrderByDescending(q => q.Answers!.Count) // Prioritize questions with more answers
-                .Take(5) // Limit to top 5 relevant questions
-                .ToListAsync();
-
-            return questions;
+            var dtos = _mapper.Map<List<QuestionDto>>(questions);
+            return dtos;
         }
 
-        private string PrepareContextForLLM(List<Question> questions, string userQuery)
-        {
-            var sb = new StringBuilder();
-            sb.AppendLine("You are a helpful FAQ assistant. Answer the user's question based on the following Q&A data:");
-            sb.AppendLine();
-            
-            foreach (var question in questions)
-            {
-                sb.AppendLine($"Question: {question.Title}");
-                if (!string.IsNullOrEmpty(question.Body))
-                    sb.AppendLine($"Details: {question.Body}");
-                sb.AppendLine($"Category: {question.Category}");
-                
-                if (question.Answers?.Any() == true)
-                {
-                    sb.AppendLine("Answers:");
-                    foreach (var answer in question.Answers.Take(3)) // Limit answers per question
-                    {
-                        sb.AppendLine($"- {answer.Body}");
-                    }
-                }
-                sb.AppendLine();
-            }
-            
-            sb.AppendLine($"User Question: {userQuery}");
-            sb.AppendLine();
-            sb.AppendLine("Please provide a helpful and concise answer based on the above information. If the exact answer isn't available, provide the most relevant information from the FAQ data.");
-            
-            return sb.ToString();
-        }
-
-private async Task<string> CallLLM(string context)
-{
-    // Get API configuration for Anthropic Claude
-    var apiKey = _configuration["Anthropic:ApiKey"]; // Store in user secrets or environment variables
-    var apiUrl = _configuration["Anthropic:ApiUrl"] ?? "https://api.anthropic.com/v1/messages";
-    
-    // If no API key configured, return a fallback response
-    if (string.IsNullOrEmpty(apiKey))
-    {
-        _logger.LogWarning("Anthropic API key not configured. Using fallback response.");
-        return GenerateFallbackResponse(context);
-    }
-
-    try
-    {
-        // Prepare the request for Anthropic Claude API
-        var requestBody = new
-        {
-            model = "claude-3-5-sonnet-20241022", // or "claude-3-opus-20240229" for more powerful model
-            max_tokens = 500,
-            temperature = 0.7,
-            messages = new[]
-            {
-                new { role = "user", content = $"You are a helpful FAQ assistant. Please help with: {context}" }
-            }
-        };
-
-        var request = new HttpRequestMessage(HttpMethod.Post, apiUrl);
-        request.Headers.Add("x-api-key", apiKey);
-        request.Headers.Add("anthropic-version", "2023-06-01");
-        request.Content = new StringContent(
-            JsonSerializer.Serialize(requestBody),
-            Encoding.UTF8,
-            "application/json"
-        );
-
-        var response = await _httpClient.SendAsync(request);
-        
-        if (response.IsSuccessStatusCode)
-        {
-            var responseContent = await response.Content.ReadAsStringAsync();
-            using var doc = JsonDocument.Parse(responseContent);
-            var llmResponse = doc.RootElement
-                .GetProperty("content")[0]
-                .GetProperty("text")
-                .GetString();
-            
-            return llmResponse ?? "I couldn't generate a response.";
-        }
-        else
-        {
-            _logger.LogError($"Anthropic API call failed with status: {response.StatusCode}");
-            var errorContent = await response.Content.ReadAsStringAsync();
-            _logger.LogError($"Error details: {errorContent}");
-            return GenerateFallbackResponse(context);
-        }
-    }
-    catch (Exception ex)
-    {
-        _logger.LogError(ex, "Error calling Anthropic Claude API");
-        return GenerateFallbackResponse(context);
-    }
-}
-        private string GenerateFallbackResponse(string context)
-        {
-            // Simple fallback logic when LLM is not available
-            var lines = context.Split('\n', StringSplitOptions.RemoveEmptyEntries);
-            var relevantInfo = new List<string>();
-            
-            foreach (var line in lines)
-            {
-                if (line.StartsWith("Question:") || line.StartsWith("- "))
-                {
-                    relevantInfo.Add(line);
-                }
-            }
-            
-            if (relevantInfo.Any())
-            {
-                return $"Based on our FAQ database, here's what I found:\n\n{string.Join("\n", relevantInfo.Take(5))}\n\nFor more detailed information, please check the specific questions in the FAQ section.";
-            }
-            
-            return "I couldn't find specific information about your query. Please try browsing our FAQ categories or asking a more specific question.";
-        }
     }
 }
