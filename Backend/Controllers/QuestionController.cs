@@ -4,20 +4,23 @@ using FAQApp.API.Data;
 using FAQApp.API.Models;
 using SolutionEngineeringFAQ.API.DTOs;
 using Microsoft.AspNetCore.Authorization;
+using System.Text.Json;
+using System.Text;
 
 namespace FAQApp.API.Controllers
 {
-    [Authorize]
+    // [Authorize]
     [ApiController]
     [Route("api/[controller]")]
     [TypeFilter(typeof(FAQApp.API.Filters.GlobalExceptionFilter))]
-public class QuestionsController(AppDbContext context, ILogger<QuestionsController> logger, Services.ChatbotService chatbotService, Services.QuestionSearchService questionSearchService, AutoMapper.IMapper mapper) : ControllerBase
+    public class QuestionsController(AppDbContext context, ILogger<QuestionsController> logger, Services.ChatbotService chatbotService, Services.QuestionSearchService questionSearchService, AutoMapper.IMapper mapper, HttpClient httpClient) : ControllerBase
     {
-    private readonly AppDbContext _context = context;
-    private readonly ILogger<QuestionsController> _logger = logger;
-    private readonly Services.ChatbotService _chatbotService = chatbotService;
-    private readonly Services.QuestionSearchService _questionSearchService = questionSearchService;
-    private readonly AutoMapper.IMapper _mapper = mapper;
+        private readonly AppDbContext _context = context;
+        private readonly ILogger<QuestionsController> _logger = logger;
+        private readonly Services.ChatbotService _chatbotService = chatbotService;
+        private readonly Services.QuestionSearchService _questionSearchService = questionSearchService;
+        private readonly AutoMapper.IMapper _mapper = mapper;
+        private readonly HttpClient _httpClient = httpClient;
 
         // POST: api/questions
         [HttpPost]
@@ -181,14 +184,14 @@ public class QuestionsController(AppDbContext context, ILogger<QuestionsControll
             }
 
             var searchTerm = q.ToLower().Trim();
-            
+
             var questions = await _context.Questions
                 .Include(q => q.Answers!)
                     .ThenInclude(a => a.Images!)
                 .Include(q => q.Answers!)
                     .ThenInclude(a => a.Votes!)
                 .Include(q => q.Images!)
-                .Where(question => 
+                .Where(question =>
                     // Search in question title
                     question.Title.ToLower().Contains(searchTerm) ||
                     // Search in question body
@@ -198,7 +201,7 @@ public class QuestionsController(AppDbContext context, ILogger<QuestionsControll
                     // Search in answers
                     question.Answers!.Any(a => a.Body.ToLower().Contains(searchTerm))
                 )
-                .OrderByDescending(q => 
+                .OrderByDescending(q =>
                     // Prioritize title matches
                     q.Title.ToLower().Contains(searchTerm) ? 3 :
                     // Then category matches
@@ -212,6 +215,45 @@ public class QuestionsController(AppDbContext context, ILogger<QuestionsControll
 
             var dtos = _mapper.Map<List<QuestionDto>>(questions);
             return dtos;
+        }
+
+        // POST: api/questions/rag
+        [HttpPost("rag")]
+        public async Task<ActionResult<object>> RagQuery([FromBody] RagQueryDto query)
+        {
+            try
+            {
+                var requestBody = new
+                {
+                    query = query.Query,
+                    history = query.History ?? new List<List<string>>()
+                };
+
+                var json = JsonSerializer.Serialize(requestBody);
+                var content = new StringContent(json, Encoding.UTF8, "application/json");
+
+                var response = await _httpClient.PostAsync("http://localhost:8000/ask", content);
+
+                if (response.IsSuccessStatusCode)
+                {
+                    var responseContent = await response.Content.ReadAsStringAsync();
+                    var result = JsonSerializer.Deserialize<object>(responseContent);
+                    return Ok(result);
+                }
+
+                return StatusCode((int)response.StatusCode, "Error calling RAG service");
+            }
+            catch (Exception ex)
+            {
+                _logger.LogError(ex, "Error calling RAG service");
+                return StatusCode(500, "Internal server error");
+            }
+        }
+
+        public class RagQueryDto
+        {
+            public string Query { get; set; } = string.Empty;
+            public List<List<string>>? History { get; set; }
         }
 
     }

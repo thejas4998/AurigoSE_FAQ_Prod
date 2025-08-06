@@ -9,6 +9,21 @@ faqfrontend/build/
 # .NET build
 SolutionEngineeringFAQ/bin/
 SolutionEngineeringFAQ/obj/
+Backend/bin/
+Backend/obj/
+
+# Python
+__pycache__/
+*.pyc
+*.pyo
+*.pyd
+.Python
+env/
+venv/
+.venv/
+pip-log.txt
+pip-delete-this-directory.txt
+.pytest_cache/
 
 # OS & editor-specific
 .DS_Store

@@ -100,6 +100,12 @@ namespace FAQApp.API.Services
 
         public static string PrepareContextForLLM(List<Question> questions, string userQuery)
         {
+
+            /*
+            TODO
+            Instead of the below, we have to use langchain with vector stores so that a set of uploaded documents and stored answers from the app will be used
+            to formulate the answer
+            */
             var sb = new StringBuilder();
             sb.AppendLine("You are a helpful FAQ assistant. Answer the user's question based on the following Q&A data:");
             sb.AppendLine();
